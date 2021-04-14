@@ -127,6 +127,7 @@ import (
 	exists            "EXISTS"
 	explain           "EXPLAIN"
 	except            "EXCEPT"
+	external          "EXTERNAL"
 	falseKwd          "FALSE"
 	fetch             "FETCH"
 	firstValue        "FIRST_VALUE"
@@ -233,6 +234,7 @@ import (
 	secondMicrosecond "SECOND_MICROSECOND"
 	selectKwd         "SELECT"
 	set               "SET"
+	settings          "SETTINGS"
 	show              "SHOW"
 	smallIntType      "SMALLINT"
 	spatial           "SPATIAL"
@@ -823,6 +825,7 @@ import (
 	BRIEStmt               "BACKUP or RESTORE statement"
 	CommitStmt             "COMMIT statement"
 	CreateTableStmt        "CREATE TABLE statement"
+	CreateExtTableStmt     "CREATE EXTERNAL TABLE statement"
 	CreateViewStmt         "CREATE VIEW  statement"
 	CreateUserStmt         "CREATE User statement"
 	CreateRoleStmt         "CREATE Role statement"
@@ -1104,6 +1107,9 @@ import (
 	SetOpr                                 "Set operator contain UNION, EXCEPT and INTERSECT"
 	SetOprClause                           "Union/Except/Intersect select clause"
 	SetOprClauseList                       "Union/Except/Intersect select clause list"
+	SettingOptions                         "settings for CREATE EXTERNAL TABLE statement"
+	SettingOptionList                      "settings option list"
+	SettingOption                          "single settings option"
 	ShowTargetFilterable                   "Show target that can be filtered by WHERE or LIKE"
 	ShowTableAliasOpt                      "Show table alias option"
 	ShowLikeOrWhereOpt                     "Show like or where clause option"
@@ -3569,6 +3575,40 @@ DatabaseOptionList:
 |	DatabaseOptionList DatabaseOption
 	{
 		$$ = append($1.([]*ast.DatabaseOption), $2.(*ast.DatabaseOption))
+	}
+
+CreateExtTableStmt:
+	"CREATE" "EXTERNAL" "TABLE" IfNotExists TableName TableElementListOpt SettingOptions
+	{
+		stmt := &ast.CreateExtTableStmt{}
+		stmt.Table = $5.(*ast.TableName)
+		stmt.IfNotExists = $4.(bool)
+		stmt.Cols = $6.(*ast.CreateTableStmt).Cols
+		stmt.Constraints = $6.(*ast.CreateTableStmt).Constraints
+		stmt.Options = $7.([]*ast.SettingOption)
+		$$ = stmt
+	}
+
+SettingOptions:
+	"SETTINGS" '(' SettingOptionList ')'
+	{
+		$$ = $3
+	}
+
+SettingOptionList:
+	SettingOption
+	{
+		$$ = []*ast.SettingOption{$1.(*ast.SettingOption)}
+	}
+|	SettingOptionList ',' SettingOption
+	{
+		$$ = append($1.([]*ast.SettingOption), $3.(*ast.SettingOption))
+	}
+
+SettingOption:
+	stringLit '=' stringLit
+	{
+		$$ = &ast.SettingOption{Key: $1, Value: $3}
 	}
 
 /*******************************************************************
@@ -10322,6 +10362,7 @@ Statement:
 |	CreateDatabaseStmt
 |	CreateImportStmt
 |	CreateIndexStmt
+|	CreateExtTableStmt
 |	CreateTableStmt
 |	CreateViewStmt
 |	CreateUserStmt

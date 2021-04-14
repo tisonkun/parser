@@ -2037,6 +2037,21 @@ func (n *TableOption) Restore(ctx *format.RestoreCtx) error {
 	return nil
 }
 
+type SettingOption struct {
+	Key   string
+	Value string
+}
+
+type CreateExtTableStmt struct {
+	ddlNode
+
+	IfNotExists bool
+	Table       *TableName
+	Cols        []*ColumnDef
+	Constraints []*Constraint
+	Options     []*SettingOption
+}
+
 // SequenceOptionType is the type for SequenceOption
 type SequenceOptionType int
 
