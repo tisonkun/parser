@@ -3607,7 +3607,7 @@ SettingOptionList:
 	}
 
 SettingOption:
-	stringLit '=' stringLit
+	stringLit EqOpt stringLit
 	{
 		$$ = &ast.SettingOption{Key: $1, Value: $3}
 	}
