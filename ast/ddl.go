@@ -1077,6 +1077,44 @@ func (n *CreateTableStmt) Accept(v Visitor) (Node, bool) {
 	return v.Leave(n)
 }
 
+type DropExtTableStmt struct {
+	ddlNode
+
+	IfExist bool
+	Tables  []*TableName
+}
+
+// Restore implements Node interface.
+func (n *DropExtTableStmt) Restore(ctx *format.RestoreCtx) error {
+	ctx.WriteKeyWord("DROP EXTERNAL TABLE ")
+	for index, table := range n.Tables {
+		if index != 0 {
+			ctx.WritePlain(", ")
+		}
+		if err := table.Restore(ctx); err != nil {
+			return errors.Annotatef(err, "An error occurred while restore DropTableStmt.Tables[%d]", index)
+		}
+	}
+	return nil
+}
+
+// Accept implements Node Accept interface.
+func (n *DropExtTableStmt) Accept(v Visitor) (Node, bool) {
+	newNode, skipChildren := v.Enter(n)
+	if skipChildren {
+		return v.Leave(newNode)
+	}
+	n = newNode.(*DropExtTableStmt)
+	for i, val := range n.Tables {
+		node, ok := val.Accept(v)
+		if !ok {
+			return n, false
+		}
+		n.Tables[i] = node.(*TableName)
+	}
+	return v.Leave(n)
+}
+
 // DropTableStmt is a statement to drop one or more tables.
 // See https://dev.mysql.com/doc/refman/5.7/en/drop-table.html
 type DropTableStmt struct {
@@ -2050,6 +2088,82 @@ type CreateExtTableStmt struct {
 	Cols        []*ColumnDef
 	Constraints []*Constraint
 	Options     []*SettingOption
+}
+
+func (n *CreateExtTableStmt) Restore(ctx *format.RestoreCtx) error {
+	ctx.WriteKeyWord("CREATE EXTERNAL TABLE ")
+	if n.IfNotExists {
+		ctx.WriteKeyWord("IF NOT EXISTS ")
+	}
+
+	if err := n.Table.Restore(ctx); err != nil {
+		return errors.Annotate(err, "An error occurred while splicing CreateTableStmt Table")
+	}
+	lenCols := len(n.Cols)
+	lenConstraints := len(n.Constraints)
+	if lenCols+lenConstraints > 0 {
+		ctx.WritePlain(" (")
+		for i, col := range n.Cols {
+			if i > 0 {
+				ctx.WritePlain(",")
+			}
+			if err := col.Restore(ctx); err != nil {
+				return errors.Annotatef(err, "An error occurred while splicing CreateTableStmt ColumnDef: [%v]", i)
+			}
+		}
+		for i, constraint := range n.Constraints {
+			if i > 0 || lenCols >= 1 {
+				ctx.WritePlain(",")
+			}
+			if err := constraint.Restore(ctx); err != nil {
+				return errors.Annotatef(err, "An error occurred while splicing CreateTableStmt Constraints: [%v]", i)
+			}
+		}
+		ctx.WritePlain(")")
+	}
+
+	ctx.WriteKeyWord(" SETTINGS ")
+	ctx.WritePlain("(")
+	for i, option := range n.Options {
+		if i > 0 {
+			ctx.WritePlain(",")
+		}
+		ctx.WriteString(option.Key)
+		ctx.WritePlain(" = ")
+		ctx.WriteString(option.Key)
+	}
+	ctx.WritePlain(")")
+
+	return nil
+}
+
+func (n *CreateExtTableStmt) Accept(v Visitor) (Node, bool) {
+	newNode, skipChildren := v.Enter(n)
+	if skipChildren {
+		return v.Leave(newNode)
+	}
+	n = newNode.(*CreateExtTableStmt)
+	node, ok := n.Table.Accept(v)
+	if !ok {
+		return n, false
+	}
+	n.Table = node.(*TableName)
+	for i, val := range n.Cols {
+		node, ok = val.Accept(v)
+		if !ok {
+			return n, false
+		}
+		n.Cols[i] = node.(*ColumnDef)
+	}
+	for i, val := range n.Constraints {
+		node, ok = val.Accept(v)
+		if !ok {
+			return n, false
+		}
+		n.Constraints[i] = node.(*Constraint)
+	}
+
+	return v.Leave(n)
 }
 
 // SequenceOptionType is the type for SequenceOption

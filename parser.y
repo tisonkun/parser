@@ -127,7 +127,6 @@ import (
 	exists            "EXISTS"
 	explain           "EXPLAIN"
 	except            "EXCEPT"
-	external          "EXTERNAL"
 	falseKwd          "FALSE"
 	fetch             "FETCH"
 	firstValue        "FIRST_VALUE"
@@ -234,7 +233,6 @@ import (
 	secondMicrosecond "SECOND_MICROSECOND"
 	selectKwd         "SELECT"
 	set               "SET"
-	settings          "SETTINGS"
 	show              "SHOW"
 	smallIntType      "SMALLINT"
 	spatial           "SPATIAL"
@@ -631,6 +629,7 @@ import (
 	dateAdd               "DATE_ADD"
 	dateSub               "DATE_SUB"
 	exact                 "EXACT"
+	external              "EXTERNAL"
 	extract               "EXTRACT"
 	flashback             "FLASHBACK"
 	getFormat             "GET_FORMAT"
@@ -646,6 +645,7 @@ import (
 	recent                "RECENT"
 	running               "RUNNING"
 	s3                    "S3"
+	settings              "SETTINGS"
 	staleness             "STALENESS"
 	std                   "STD"
 	stddev                "STDDEV"
@@ -841,6 +841,7 @@ import (
 	DropIndexStmt          "DROP INDEX statement"
 	DropStatisticsStmt     "DROP STATISTICS statement"
 	DropStatsStmt          "DROP STATS statement"
+	DropExtTableStmt       "DROP EXTERNAL TABLE statement"
 	DropTableStmt          "DROP TABLE statement"
 	DropSequenceStmt       "DROP SEQUENCE statement"
 	DropUserStmt           "DROP USER"
@@ -4249,6 +4250,12 @@ DropIndexStmt:
 			}
 		}
 		$$ = &ast.DropIndexStmt{IfExists: $3.(bool), IndexName: $4, Table: $6.(*ast.TableName), LockAlg: indexLockAndAlgorithm}
+	}
+
+DropExtTableStmt:
+	"DROP" "EXTERNAL" TableOrTables IfExists TableNameList RestrictOrCascadeOpt
+	{
+		$$ = &ast.DropTableStmt{IfExists: $4.(bool), Tables: $5.([]*ast.TableName)}
 	}
 
 DropTableStmt:
@@ -10374,6 +10381,7 @@ Statement:
 |	DropDatabaseStmt
 |	DropImportStmt
 |	DropIndexStmt
+|	DropExtTableStmt
 |	DropTableStmt
 |	DropSequenceStmt
 |	DropViewStmt
